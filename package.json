@@ -1,0 +1,40 @@
+{
+  "name": "pp-ban-records",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "main": "package.json",
+  "license": "UNLICENSED",
+  "scripts": {
+    "build": "sanity build",
+    "deploy": "sanity deploy",
+    "dev": "sanity dev",
+    "start": "sanity start",
+    "sync": "node scripts/sync-from-site.mjs",
+    "typegen": "sanity typegen generate",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint ."
+  },
+  "keywords": [
+    "sanity"
+  ],
+  "dependencies": {
+    "@sanity/sdk": "^3.16.0",
+    "@sanity/sdk-react": "^3.16.0",
+    "@sanity/ui": "^4.3.0",
+    "groq": "^6.25.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "styled-components": "^6.1.18"
+  },
+  "devDependencies": {
+    "@sanity/eslint-config-studio": "^7",
+    "@types/react": "^19.2.14",
+    "eslint": "^10.8.1",
+    "globals": "^17.14.0",
+    "prettier": "^3.5",
+    "sanity": "^6.25.0",
+    "typescript": "~6.0"
+  },
+  "description": "Sanity App SDK dashboard for Punk & Pedagogy ban-records research"
+}
