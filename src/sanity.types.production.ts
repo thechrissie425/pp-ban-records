@@ -997,6 +997,11 @@ export type BAN_DASHBOARD_QUERY_RESULT = Array<{
   }> | null;
 }>;
 
+// Source: src/queries.ts
+// Variable: DRAFTED_BOOKS_QUERY
+// Query: *[_type == "book" && _id in path("drafts.**")]._id
+export type DRAFTED_BOOKS_QUERY_RESULT = Array<string>;
+
 // Resource TypeMap: gu6yig93.production
 declare global {
   interface SanitySchemasByResource {
@@ -1005,6 +1010,7 @@ declare global {
   interface SanityQueriesByResource {
     "gu6yig93.production": {
       '*[_type == "book" && (isBanned == true || count(banRecords) > 0)]\n  | order(title asc) {\n    _id,\n    _type,\n    title,\n    author,\n    isBanned,\n    "records": banRecords[] {\n      _key,\n      status,\n      scope,\n      confidence,\n      year,\n      date,\n      lastVerified,\n      sourceUrl,\n      notes,\n      "place": jurisdiction->label\n    }\n  }': BAN_DASHBOARD_QUERY_RESULT;
+      '*[_type == "book" && _id in path("drafts.**")]._id': DRAFTED_BOOKS_QUERY_RESULT;
     };
   }
   interface SanityProjectionsByResource {

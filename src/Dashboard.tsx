@@ -1,11 +1,12 @@
 import {useQuery} from '@sanity/sdk-react'
-import {Badge, Box, Card, Container, Flex, Grid, Heading, Stack, Tab, TabList, TabPanel, Text} from '@sanity/ui'
+import {Badge, Box, Button, Card, Container, Flex, Grid, Heading, Stack, Tab, TabList, TabPanel, Text} from '@sanity/ui'
 import {useMemo, useState, type ReactNode} from 'react'
 
 import {buildDashboard, REVERIFY_AFTER_DAYS, type HiddenRow, type LiveRow} from './model'
 import {OpenInStudio} from './OpenInStudio'
-import {BAN_DASHBOARD_QUERY} from './queries'
+import {BAN_DASHBOARD_QUERY, DRAFTED_BOOKS_QUERY} from './queries'
 import {resources} from './resources'
+import {VerifyButton} from './VerifyButton'
 
 type TabId = 'live' | 'hidden' | 'flagged'
 
@@ -13,7 +14,19 @@ export function Dashboard() {
   // One query, typed by TypeGen from the site's schema. Live: it re-renders when a book changes.
   const {data} = useQuery({...resources.production, query: BAN_DASHBOARD_QUERY})
   const dash = useMemo(() => buildDashboard(data), [data])
+  // Raw perspective: which books have unpublished drafts (see VerifyButton for why that matters).
+  const {data: draftIds} = useQuery({...resources.production, perspective: 'raw', query: DRAFTED_BOOKS_QUERY})
+  const drafted = useMemo(() => new Set(draftIds.map((id) => id.replace(/^drafts\./, ''))), [draftIds])
   const [tab, setTab] = useState<TabId>('live')
+  // Rows whose research notes are open (by row key).
+  const [open, setOpen] = useState<Set<string>>(() => new Set())
+  const toggle = (key: string) =>
+    setOpen((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
   const c = dash.counts
 
   return (
@@ -45,8 +58,12 @@ export function Dashboard() {
         <TabPanel id="live-panel" aria-labelledby="live-tab" hidden={tab !== 'live'}>
           <Table
             empty="No live records."
-            head={['Book', 'Where', 'What', 'Last verified', 'Next check']}
-            rows={dash.live.map((r) => ({key: r.key, cells: liveCells(r)}))}
+            head={['Book', 'Where', 'What', 'Last verified', 'Next check', 'Research', 'Re-checked the source?']}
+            rows={dash.live.map((r) => ({
+              key: r.key,
+              cells: liveCells(r, drafted.has(r.book.id), open.has(r.key), () => toggle(r.key)),
+              detail: open.has(r.key) ? <Notes text={r.notes} /> : null,
+            }))}
           />
         </TabPanel>
 
@@ -58,7 +75,7 @@ export function Dashboard() {
             </Text>
             <Table
               empty="Nothing waiting."
-              head={['Book', 'Where', 'Why hidden', 'Notes']}
+              head={['Book', 'Where', 'Why hidden', 'Notes', 'Research']}
               rows={dash.hidden.map((r) => ({key: r.key, cells: hiddenCells(r)}))}
             />
           </Stack>
@@ -85,7 +102,7 @@ export function Dashboard() {
   )
 }
 
-function liveCells(r: LiveRow): ReactNode[] {
+function liveCells(r: LiveRow, hasDraft: boolean, notesOpen: boolean, toggleNotes: () => void): ReactNode[] {
   return [
     <OpenInStudio key="b" id={r.book.id} title={r.book.title} />,
     <Cell key="p">{r.place}</Cell>,
@@ -96,6 +113,12 @@ function liveCells(r: LiveRow): ReactNode[] {
     <Cell key="d">
       <Due days={r.dueInDays} />
     </Cell>,
+    <Box key="r" paddingY={2}>
+      <ResearchLinks sourceUrl={r.sourceUrl} searchUrl={r.searchUrl} searchAllUrl={r.searchAllUrl} notesOpen={notesOpen} onToggleNotes={r.notes ? toggleNotes : null} />
+    </Box>,
+    <Box key="v" paddingY={1}>
+      <VerifyButton bookId={r.book.id} bookTitle={r.book.title} recordKey={r.recordKey} place={r.place} hasDraft={hasDraft} />
+    </Box>,
   ]
 }
 
@@ -109,16 +132,59 @@ function hiddenCells(r: HiddenRow): ReactNode[] {
     <Cell key="y">{r.why}</Cell>,
     <Cell key="n" muted>
       {r.notes ?? ''}
-      {r.sourceUrl ? (
-        <>
-          {' '}
-          <a href={r.sourceUrl} target="_blank" rel="noreferrer">
-            Source
-          </a>
-        </>
-      ) : null}
     </Cell>,
+    <Box key="r" paddingY={2}>
+      <ResearchLinks sourceUrl={r.sourceUrl} searchUrl={r.searchUrl} searchAllUrl={r.searchAllUrl} notesOpen={false} onToggleNotes={null} />
+    </Box>,
   ]
+}
+
+/**
+ * Where a re-check starts: the record's own source, a news search for what's happened since (the book and the
+ * place, the last year), and the record's research notes, opened under the row.
+ */
+function ResearchLinks({sourceUrl, searchUrl, searchAllUrl, notesOpen, onToggleNotes}: {sourceUrl: string | null; searchUrl: string; searchAllUrl: string; notesOpen: boolean; onToggleNotes: (() => void) | null}) {
+  return (
+    <Stack gap={2}>
+      {sourceUrl ? (
+        <Text size={1}>
+          <a href={sourceUrl} target="_blank" rel="noreferrer">
+            Source ↗
+          </a>
+        </Text>
+      ) : (
+        <Text size={1} muted>
+          No source on file
+        </Text>
+      )}
+      <Text size={1}>
+        <a href={searchUrl} target="_blank" rel="noreferrer" title="Google News, last 12 months">
+          News, past year ↗
+        </a>
+      </Text>
+      <Text size={1}>
+        <a href={searchAllUrl} target="_blank" rel="noreferrer" title="Google News, all dates">
+          News, all dates ↗
+        </a>
+      </Text>
+      {onToggleNotes ? (
+        <Box>
+          <Button mode="bleed" fontSize={1} padding={1} text={notesOpen ? 'Hide notes' : 'Notes'} onClick={onToggleNotes} />
+        </Box>
+      ) : null}
+    </Stack>
+  )
+}
+
+/** A record's research notes, under its row across the whole table. */
+function Notes({text}: {text: string | null}) {
+  return (
+    <Card tone="transparent" paddingX={3} paddingY={3} marginBottom={2} radius={2} style={{gridColumn: '1 / -1', background: 'var(--card-muted-bg-color)'}}>
+      <Text size={1} muted>
+        {text}
+      </Text>
+    </Card>
+  )
 }
 
 function Due({days}: {days: number | null}) {
@@ -154,7 +220,7 @@ function Cell({children, muted}: {children: ReactNode; muted?: boolean}) {
 }
 
 /** A plain grid table: Sanity UI has no table primitive. */
-function Table({head, rows, empty}: {head: string[]; rows: {key: string; cells: ReactNode[]}[]; empty: string}) {
+function Table({head, rows, empty}: {head: string[]; rows: {key: string; cells: ReactNode[]; detail?: ReactNode}[]; empty: string}) {
   const columns = `minmax(12rem, 2fr) repeat(${head.length - 1}, minmax(8rem, 1fr))`
   if (!rows.length) {
     return (
@@ -176,6 +242,7 @@ function Table({head, rows, empty}: {head: string[]; rows: {key: string; cells: 
         {rows.map((r) => (
           <Flex key={r.key} style={{display: 'contents'}}>
             {r.cells}
+            {r.detail}
           </Flex>
         ))}
       </Box>

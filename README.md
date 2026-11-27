@@ -12,6 +12,17 @@ Dashboard, next to the Studio, and answers the questions an editor asks before a
 
 Each book title opens that book in Studio (`useNavigateToStudioDocument`).
 
+**Research links** (every row): the record's own source, two Google News searches for the book and the place
+(the past year, where nothing is itself a finding, and all dates, which can surface a later ruling the record
+misses), and the record's research notes, opened under the row. The search uses the core place name ("Pickens
+County", not "Pickens County School District"), since news rarely uses an institution's full name.
+
+**Mark verified** (live tab): after re-checking a record's source, two clicks set its `lastVerified` to today.
+The edit and a publish go out as one transaction (`useApplyDocumentActions` with `editDocument` +
+`publishDocument`), so the site shows the new date at once. A book that already has unpublished draft changes
+gets the date in its draft only, because publishing it would push those unrelated edits live too; a second query
+with the `raw` perspective finds those books. A ban that's no longer in effect is a status change, made in Studio.
+
 ## How it's built
 
 - **One GROQ query** (`src/queries.ts`, via `useQuery`), not handles and projections: ban records are

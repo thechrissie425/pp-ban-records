@@ -29,3 +29,10 @@ export const BAN_DASHBOARD_QUERY = defineQuery(`*[_type == "book" && (isBanned =
       "place": jurisdiction->label
     }
   }`)
+
+/**
+ * Books with unpublished draft changes (read with perspective "raw"). The "Mark verified" button
+ * publishes the book after setting the date, which would also publish any other pending draft
+ * changes, so for these books it saves into the draft only and leaves publishing to Studio.
+ */
+export const DRAFTED_BOOKS_QUERY = defineQuery(`*[_type == "book" && _id in path("drafts.**")]._id`)
