@@ -4,8 +4,9 @@ import {useMemo, useState, type ReactNode} from 'react'
 
 import {buildDashboard, REVERIFY_AFTER_DAYS, type HiddenRow, type LiveRow} from './model'
 import {OpenInStudio} from './OpenInStudio'
-import {BAN_DASHBOARD_QUERY} from './queries'
+import {BAN_DASHBOARD_QUERY, DRAFTED_BOOKS_QUERY} from './queries'
 import {resources} from './resources'
+import {VerifyButton} from './VerifyButton'
 
 type TabId = 'live' | 'hidden' | 'flagged'
 
@@ -13,6 +14,9 @@ export function Dashboard() {
   // One query, typed by TypeGen from the site's schema. Live: it re-renders when a book changes.
   const {data} = useQuery({...resources.production, query: BAN_DASHBOARD_QUERY})
   const dash = useMemo(() => buildDashboard(data), [data])
+  // Raw perspective: which books have unpublished drafts (see VerifyButton for why that matters).
+  const {data: draftIds} = useQuery({...resources.production, perspective: 'raw', query: DRAFTED_BOOKS_QUERY})
+  const drafted = useMemo(() => new Set(draftIds.map((id) => id.replace(/^drafts\./, ''))), [draftIds])
   const [tab, setTab] = useState<TabId>('live')
   const c = dash.counts
 
@@ -45,8 +49,8 @@ export function Dashboard() {
         <TabPanel id="live-panel" aria-labelledby="live-tab" hidden={tab !== 'live'}>
           <Table
             empty="No live records."
-            head={['Book', 'Where', 'What', 'Last verified', 'Next check']}
-            rows={dash.live.map((r) => ({key: r.key, cells: liveCells(r)}))}
+            head={['Book', 'Where', 'What', 'Last verified', 'Next check', 'Re-checked the source?']}
+            rows={dash.live.map((r) => ({key: r.key, cells: liveCells(r, drafted.has(r.book.id))}))}
           />
         </TabPanel>
 
@@ -85,7 +89,7 @@ export function Dashboard() {
   )
 }
 
-function liveCells(r: LiveRow): ReactNode[] {
+function liveCells(r: LiveRow, hasDraft: boolean): ReactNode[] {
   return [
     <OpenInStudio key="b" id={r.book.id} title={r.book.title} />,
     <Cell key="p">{r.place}</Cell>,
@@ -96,6 +100,9 @@ function liveCells(r: LiveRow): ReactNode[] {
     <Cell key="d">
       <Due days={r.dueInDays} />
     </Cell>,
+    <Box key="v" paddingY={1}>
+      <VerifyButton bookId={r.book.id} bookTitle={r.book.title} recordKey={r.recordKey} place={r.place} hasDraft={hasDraft} />
+    </Box>,
   ]
 }
 

@@ -18,6 +18,8 @@ export type BookRef = {id: string; title: string; author: string}
 
 export type LiveRow = {
   key: string
+  /** The ban record's own `_key` inside the book's `banRecords` array (for edits). */
+  recordKey: string
   book: BookRef
   place: string
   status: string
@@ -97,6 +99,7 @@ export function buildDashboard(books: BAN_DASHBOARD_QUERY_RESULT, today = new Da
       if (!isLiveStatus(r.status)) continue
       live.push({
         key: `${book.id}:${r._key}`,
+        recordKey: r._key,
         book,
         place: r.place,
         status: banStatusTitle(r.status) ?? r.status,
