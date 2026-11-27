@@ -4,8 +4,8 @@ import {Suspense} from 'react'
 
 import {resources} from './resources'
 
-/** The hosted Studio, so links open there rather than the Studio embedded in the site. */
-const PREFERRED_STUDIO = 'https://punk-and-pedagogy.sanity.studio'
+/** The site's embedded Studio, the only registered Studio since 2026-11-27. */
+const PREFERRED_STUDIO = 'https://www.punkandpedagogy.com/studio'
 
 type Props = {id: string; title: string}
 
